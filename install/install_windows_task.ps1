@@ -1,8 +1,8 @@
-# Installiert usb-lock als geplante Aufgabe, die bei jeder Anmeldung
-# unsichtbar (ohne Konsolenfenster) im Hintergrund startet.
+# Installs usb-lock as a scheduled task that starts invisibly (no console
+# window) in the background on every logon.
 #
-# Ausfuehren in einer PowerShell (muss nicht als Administrator laufen,
-# solange der Task nur fuer den aktuellen Benutzer gilt):
+# Run in PowerShell (does not need to run as Administrator, as long as the
+# task only applies to the current user):
 #   powershell -ExecutionPolicy Bypass -File install_windows_task.ps1
 
 $ErrorActionPreference = "Stop"
@@ -11,7 +11,7 @@ $RepoDir = Split-Path -Parent $PSScriptRoot
 $PythonwExe = (Get-Command pythonw.exe -ErrorAction SilentlyContinue).Source
 if (-not $PythonwExe) {
     $PythonwExe = (Get-Command python.exe).Source
-    Write-Warning "pythonw.exe nicht gefunden, verwende python.exe (zeigt ein Konsolenfenster)."
+    Write-Warning "pythonw.exe not found, using python.exe instead (will show a console window)."
 }
 
 $TaskName = "usb-lock"
@@ -22,7 +22,7 @@ $Trigger = New-ScheduledTaskTrigger -AtLogOn
 $Settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
 
 Register-ScheduledTask -TaskName $TaskName -Action $Action -Trigger $Trigger `
-    -Settings $Settings -Description "Sperrt den Bildschirm bei USB-Entfernung" -Force
+    -Settings $Settings -Description "Locks the screen (or shuts down) on USB removal" -Force
 
-Write-Host "Task '$TaskName' wurde angelegt. Er startet bei der naechsten Anmeldung automatisch."
-Write-Host "Manuell jetzt starten mit: Start-ScheduledTask -TaskName '$TaskName'"
+Write-Host "Task '$TaskName' created. It will start automatically on your next logon."
+Write-Host "Start it manually now with: Start-ScheduledTask -TaskName '$TaskName'"

@@ -1,20 +1,26 @@
-# Kopiere diese Datei nach config.yaml und passe sie an.
-# Alternativ nach ~/.config/usb-lock/config.yaml legen.
+# Copy this file to config.yaml and adjust it as needed.
+# Alternatively, place it at ~/.config/usb-lock/config.yaml
 
-# "any"      -> sperrt bei JEDER USB-Geraete-Entfernung (Maus, Tastatur, Stick, ...)
-# "specific" -> sperrt nur, wenn eines der unten gelisteten Geraete entfernt wird
-#               (empfohlen fuer einen "USB-Schluessel"-Ansatz, siehe README)
+# What to do when a matching USB removal is detected:
+#   "lock"     -> lock the screen (default, safe)
+#   "shutdown" -> shut the machine down immediately (DESTRUCTIVE - unsaved
+#                 work is lost, use with care)
+action: lock
+
+# "any"      -> triggers on ANY USB device removal (mouse, keyboard, stick, ...)
+# "specific" -> only triggers when one of the devices listed below is removed
+#               (recommended for a "USB key" deadman-switch setup, see README)
 mode: any
 
-# Nur relevant wenn mode: specific
-# vendor_id / product_id findest du z.B. mit "lsusb" (Linux) oder im
-# Geraete-Manager (Windows, Feld "Hardware-IDs").
+# Only relevant when mode: specific
+# Find vendor_id / product_id e.g. with "lsusb" (Linux) or in the Device
+# Manager (Windows, "Hardware IDs" field).
 specific_devices:
   - vendor_id: "0781"
     product_id: "5567"
 
-# Nur unter Windows relevant (Linux nutzt Kernel-Events, kein Polling noetig).
+# Only relevant on Windows (Linux uses kernel events, no polling needed).
 poll_interval: 1.0
 
-# Wartezeit in Sekunden zwischen erkannter Entfernung und Sperren.
+# Delay in seconds between the detected removal and running the action.
 lock_delay: 0

@@ -1,12 +1,12 @@
 """usb_lock/gui.py
 
-Kleines randloses, schwarzes quadratisches Fenster mit einem On/Off-Switch
-in der Mitte. Der Switch steuert, ob eine erkannte USB-Entfernung tatsaechlich
-den Bildschirm sperrt (ON) oder ignoriert wird (OFF). Der USB-Watcher laeuft
-dabei durchgehend im Hintergrund-Thread; der Switch schaltet nur, ob die
-Sperr-Aktion ausgefuehrt wird.
+Small, borderless, black square window with an On/Off switch in the
+center. The switch controls whether a detected USB removal actually
+triggers the configured action (ON) or is ignored (OFF). The USB
+watcher always keeps running in a background thread; the switch just
+gates whether the action fires.
 
-Start:
+Run:
     python -m usb_lock.gui
 """
 from __future__ import annotations
@@ -19,7 +19,7 @@ import time
 import pygame
 
 from usb_lock.config import Config
-from usb_lock.lock import lock_screen
+from usb_lock.lock import perform_action
 
 # ---------------------------------------------------------------- Layout ---
 WINDOW_SIZE = 300
@@ -43,9 +43,9 @@ CLOSE_RADIUS = 8
 CLOSE_CENTER = (WINDOW_SIZE - 16, 16)
 
 
-# --------------------------------------------------------------- Zustand ---
+# ---------------------------------------------------------------- State ----
 class SwitchState:
-    """Thread-sicherer An/Aus-Zustand, von GUI-Thread und Watcher-Thread genutzt."""
+    """Thread-safe on/off state, shared by the GUI thread and the watcher thread."""
 
     def __init__(self, enabled: bool = True) -> None:
         self._lock = threading.Lock()
@@ -65,7 +65,7 @@ def _log(msg: str) -> None:
     print(f"[{time.strftime('%H:%M:%S')}] {msg}", flush=True)
 
 
-# ------------------------------------------------------------ USB-Watcher --
+# ------------------------------------------------------------ USB watcher --
 def _start_watcher_thread(cfg: Config, state: SwitchState) -> None:
     system = platform.system()
     if system == "Windows":
@@ -73,17 +73,17 @@ def _start_watcher_thread(cfg: Config, state: SwitchState) -> None:
     elif system == "Linux":
         from usb_lock import watcher_linux as watcher
     else:
-        _log(f"Betriebssystem '{system}' wird nicht unterstuetzt.")
+        _log(f"Operating system '{system}' is not supported.")
         return
 
     def on_remove(info) -> None:
         if not state.is_enabled():
-            _log(f"USB entfernt ({info}) - Schalter ist AUS, ignoriert.")
+            _log(f"USB removed ({info}) - switch is OFF, ignoring.")
             return
-        _log(f"USB entfernt ({info}) - sperre Bildschirm.")
+        _log(f"USB removed ({info}) - triggering action '{cfg.action}'.")
         if cfg.lock_delay > 0:
             time.sleep(cfg.lock_delay)
-        lock_screen()
+        perform_action(cfg.action)
 
     def run() -> None:
         try:
@@ -93,23 +93,23 @@ def _start_watcher_thread(cfg: Config, state: SwitchState) -> None:
                 specific_devices=cfg.specific_devices,
                 poll_interval=cfg.poll_interval,
             )
-        except Exception as exc:  # Watcher soll die GUI nie mitreissen
-            _log(f"Watcher-Fehler: {exc}")
+        except Exception as exc:  # the watcher must never take the GUI down with it
+            _log(f"Watcher error: {exc}")
 
     threading.Thread(target=run, daemon=True).start()
 
 
-# -------------------------------------------------------------- Zeichnen ---
+# ------------------------------------------------------------- Rendering ---
 def draw(surface: "pygame.Surface", fonts, state: SwitchState, mouse_pos) -> None:
     surface.fill(BG_COLOR)
 
     is_on = state.is_enabled()
 
-    # Switch-Track
+    # Switch track
     track_color = ON_COLOR if is_on else OFF_COLOR
     pygame.draw.rect(surface, track_color, SWITCH_RECT, border_radius=SWITCH_H // 2)
 
-    # Switch-Knopf
+    # Switch knob
     knob_radius = SWITCH_H // 2 - 6
     knob_y = SWITCH_Y + SWITCH_H // 2
     knob_x = (
@@ -119,7 +119,7 @@ def draw(surface: "pygame.Surface", fonts, state: SwitchState, mouse_pos) -> Non
     )
     pygame.draw.circle(surface, KNOB_COLOR, (knob_x, knob_y), knob_radius)
 
-    # Status-Label ueber dem Switch
+    # Status label above the switch
     label_font, small_font = fonts
     label_text = "ON" if is_on else "OFF"
     label_color = LABEL_ON_COLOR if is_on else LABEL_OFF_COLOR
@@ -127,7 +127,7 @@ def draw(surface: "pygame.Surface", fonts, state: SwitchState, mouse_pos) -> Non
     label_rect = label_surf.get_rect(center=(WINDOW_SIZE // 2, SWITCH_Y - 28))
     surface.blit(label_surf, label_rect)
 
-    # Schliessen-Button (kleiner Punkt oben rechts, da kein Fensterrahmen)
+    # Close button (small dot top-right, since there's no window chrome)
     hovered = (
         (mouse_pos[0] - CLOSE_CENTER[0]) ** 2 + (mouse_pos[1] - CLOSE_CENTER[1]) ** 2
         <= (CLOSE_RADIUS + 4) ** 2
@@ -135,7 +135,7 @@ def draw(surface: "pygame.Surface", fonts, state: SwitchState, mouse_pos) -> Non
     close_color = CLOSE_HOVER_COLOR if hovered else CLOSE_COLOR
     pygame.draw.circle(surface, close_color, CLOSE_CENTER, CLOSE_RADIUS)
 
-    # Wasserzeichen unten rechts
+    # Watermark bottom-right
     watermark_surf = small_font.render("milka161", True, WATERMARK_COLOR)
     watermark_rect = watermark_surf.get_rect(
         bottomright=(WINDOW_SIZE - 10, WINDOW_SIZE - 8)
@@ -143,11 +143,11 @@ def draw(surface: "pygame.Surface", fonts, state: SwitchState, mouse_pos) -> Non
     surface.blit(watermark_surf, watermark_rect)
 
 
-# ------------------------------------------------------------------ Main ---
+# ----------------------------------------------------------------- Main ----
 def main() -> None:
     import os
 
-    # Fenster beim Start auf dem Bildschirm zentrieren.
+    # Center the window on screen at startup.
     os.environ.setdefault("SDL_VIDEO_CENTERED", "1")
 
     pygame.init()
@@ -162,10 +162,10 @@ def main() -> None:
     cfg = Config.load()
     state = SwitchState(enabled=True)
     _start_watcher_thread(cfg, state)
-    _log(f"GUI gestartet (OS={platform.system()}, mode={cfg.mode}).")
+    _log(f"GUI started (OS={platform.system()}, mode={cfg.mode}, action={cfg.action}).")
 
-    # Bestes-Bemuehen-Drag: haelt man die linke Maustaste auf dem Hintergrund
-    # gedrueckt (nicht auf Switch/Close), kann man das Fenster verschieben.
+    # Best-effort drag: holding the left mouse button on the background
+    # (not on the switch/close button) lets you move the window.
     try:
         from pygame._sdl2.video import Window
 
@@ -195,10 +195,10 @@ def main() -> None:
                     running = False
                 elif SWITCH_RECT.collidepoint(event.pos):
                     new_state = state.toggle()
-                    _log(f"Schalter -> {'ON' if new_state else 'OFF'}")
+                    _log(f"Switch -> {'ON' if new_state else 'OFF'}")
                 elif sdl_window is not None:
                     dragging = True
-                    pygame.mouse.get_rel()  # Delta-Puffer zuruecksetzen
+                    pygame.mouse.get_rel()  # reset the delta buffer
 
             elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
                 dragging = False

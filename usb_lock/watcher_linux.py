@@ -1,5 +1,5 @@
-"""USB-Ueberwachung fuer Linux via pyudev (nutzt Kernel-Netlink-Events,
-kein Polling noetig -> reagiert praktisch sofort)."""
+"""USB monitoring for Linux via pyudev (uses kernel netlink events,
+no polling needed -> reacts essentially instantly)."""
 from __future__ import annotations
 
 from typing import Callable, Iterable
@@ -26,9 +26,9 @@ def watch(
     on_remove: Callable[["pyudev.Device"], None],
     mode: str = "any",
     specific_devices: Iterable[dict] | None = None,
-    poll_interval: float = 1.0,  # ungenutzt unter Linux, nur fuer einheitliche Signatur
+    poll_interval: float = 1.0,  # unused on Linux, kept only for a uniform signature
 ) -> None:
-    """Blockiert und ruft on_remove(device) bei jeder erkannten USB-Entfernung auf."""
+    """Blocks and calls on_remove(device) for every detected USB removal."""
     specific_devices = list(specific_devices or [])
 
     context = pyudev.Context()

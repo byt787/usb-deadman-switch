@@ -1,10 +1,10 @@
 [Unit]
-Description=usb-lock - sperrt den Bildschirm bei USB-Entfernung
+Description=usb-lock - locks the screen (or shuts down) on USB removal
 After=graphical-session.target
 
 [Service]
 Type=simple
-# %h wird zu $HOME aufgeloest. Pfad ggf. anpassen, falls das Repo woanders liegt.
+# %h resolves to $HOME. Adjust the path if the repo lives elsewhere.
 WorkingDirectory=%h/usb-lock
 ExecStart=/usr/bin/python3 -m usb_lock.gui
 Restart=on-failure
