@@ -1,0 +1,14 @@
+[Unit]
+Description=usb-lock - sperrt den Bildschirm bei USB-Entfernung
+After=graphical-session.target
+
+[Service]
+Type=simple
+# %h wird zu $HOME aufgeloest. Pfad ggf. anpassen, falls das Repo woanders liegt.
+WorkingDirectory=%h/usb-lock
+ExecStart=/usr/bin/python3 -m usb_lock.gui
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target
